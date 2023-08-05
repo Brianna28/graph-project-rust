@@ -2,6 +2,7 @@
 pub mod diameter;
 use nalgebra::DMatrix;
 use rand::Rng;
+use rand::seq::SliceRandom; 
 use std::collections::{HashMap,HashSet};
 
 struct InfectionGraph {
@@ -38,6 +39,30 @@ impl InfectionGraph{
         self.graph = done;
 
     }
+
+    fn infect(&mut self, p: f64){
+        let mut rng: rand::rngs::ThreadRng = rand::thread_rng();
+        let mut to_be_infected: Vec<usize> = Vec::new();
+        
+        for i in &self.infected{
+            let neighbours = self.get_neighbours(*i);
+            to_be_infected.extend(neighbours.iter().filter(|x| !self.infected.contains(x)));
+        }
+        let mut new_infected = Vec::new();
+        for node in to_be_infected{
+            let r_no = rng.gen::<f64>();
+            if self.time_recovered.get(&node) > Some(&0){
+                continue;
+            }
+            if r_no < p {
+                new_infected.push(node);
+            }
+
+        }
+        self.infected.extend(new_infected)
+
+    }
+
 }
 
 
@@ -45,8 +70,14 @@ impl InfectionGraph{
 
 fn InfectionGraphConstructor(G: DMatrix<usize>, size: usize) -> InfectionGraph{
     let edges = (G.sum())/2;
-    let infected: HashSet<usize> = HashSet::new();
     let vertices: Vec<usize> = (0..size).collect();
+    let mut infected: HashSet<usize> = HashSet::new();
+    let unlucky = vertices.choose(&mut rand::thread_rng());
+    let x = match unlucky{
+        Some(d) => *d,
+        None => 0
+    };
+    infected.insert(x);
     let zeros: Vec<usize> = vec![0; size];
     let days_infected: HashMap<usize,usize>= vertices.iter().cloned().zip(zeros.iter().cloned()).collect();
     let time_recovered: HashMap<usize,usize>= vertices.iter().cloned().zip(zeros.iter().cloned()).collect();
@@ -87,7 +118,7 @@ fn gen_random_graph(num_vertices: usize, probability: f64)-> DMatrix<usize>{
 
 
 fn main(){
-    let a = gen_random_graph(2500, 0.3);
+    let a = gen_random_graph(10, 0.3);
     //println!("DONE");
     //println!("{:?}",a.data)
     //for i in a.row_iter(){
@@ -97,8 +128,12 @@ fn main(){
 
     //print_matrix(&R.graph);
     //println!("{:?}",&R.vertices);
-    R.remove_node(2);
-    println!("DOne")
+    println!("{:?}", R.infected);
+    R.infect(1.0);
+    println!("{:?}", R.infected);
+
+
+
     //print_matrix(&R.graph);
     //println!("{:?}",&R.vertices);
 
