@@ -1,6 +1,6 @@
 // main.rs
 pub mod diameter;
-use nalgebra::DMatrix;
+use nalgebra::{DMatrix, coordinates::X};
 use rand::Rng;
 use rand::seq::SliceRandom; 
 use std::collections::{HashMap,HashSet};
@@ -26,7 +26,18 @@ impl InfectionGraph{
     }
     fn get_neighbours(&self, n: usize) -> Vec<usize>{
         let index = self.get_index(n);
-        let neighbours: Vec<usize> = self.graph.row(index).iter().enumerate().filter(|(_,&value)| value != 0).map(|(idx,_)| idx).collect();
+        let index_neighbours: Vec<usize> = self.graph.row(index)
+                                                .iter()
+                                                .enumerate()
+                                                .filter(|(_,&value)| value != 0)
+                                                .map(|(idx,_)| idx).collect();
+        let mut neighbours = Vec::new();
+        for i in index_neighbours{
+            let a = self.vertices[i];
+            neighbours.push(a);
+        }
+
+
         return neighbours;
     }
     fn remove_node(&mut self, n: usize){
@@ -36,6 +47,7 @@ impl InfectionGraph{
         //let mut nearly_there = new_graph.remove_column(index);
         //let done = nearly_there.remove_row(index);
         self.vertices.remove(index);
+        self.infected.remove(&n);
         self.graph = done;
 
     }
@@ -60,6 +72,29 @@ impl InfectionGraph{
 
         }
         self.infected.extend(new_infected)
+
+    }
+    fn die_or_recover(&mut self, node: usize, p_r: f64){
+        let mut rng: rand::rngs::ThreadRng = rand::thread_rng();
+        let r_no = rng.gen::<f64>();
+
+        if r_no < p_r{
+            self.infected.remove(&node);
+            self.days_infected.insert(node,0);
+            let mut time_recovered = match self.time_recovered.get(&node){
+                Some(x) => *x,
+                None => 0
+            };
+            time_recovered+=1;
+            self.time_recovered.insert(node,time_recovered);
+
+        }else {
+            let test = self.infected.len();
+            self.remove_node(node);            
+            self.days_infected.insert(node,0);
+        }
+
+
 
     }
 
@@ -113,24 +148,67 @@ fn gen_random_graph(num_vertices: usize, probability: f64)-> DMatrix<usize>{
     adjacency_matrix
 }
 
+fn days_infected_checker(graph: &mut InfectionGraph, p_r: f64){
+    let mut days_to_be_added: Vec<usize> = Vec::new();
+    let mut nodes_to_die_or_recover: Vec<usize> = Vec::new();
 
+    for (node,_) in &graph.days_infected{
+        if graph.infected.contains(node){
+            days_to_be_added.push(*node)
+        }
+        if graph.days_infected.get(&node) > Some(&10){
+            nodes_to_die_or_recover.push(*node)
+
+        }
+    }
+    for nodes in days_to_be_added{
+        let days = graph.days_infected.get(&nodes);
+        let mut day = match days {
+            Some(x) => *x,
+            None => 0
+        };
+        day +=1;
+        graph.days_infected.insert(nodes,day);
+    }
+    for node in nodes_to_die_or_recover{
+        graph.die_or_recover(node, p_r);
+    }
+}
 
 
 
 fn main(){
-    let a = gen_random_graph(10, 0.3);
+    let size = 500;
+    let a = gen_random_graph(size, 0.5);
     //println!("DONE");
     //println!("{:?}",a.data)
     //for i in a.row_iter(){
     //    println!("{}",i.sum());
     //}
-    let mut R: InfectionGraph = InfectionGraphConstructor(a, 10);
+    let mut R: InfectionGraph = InfectionGraphConstructor(a, size);
+    
+    for _ in 0..1000{
+        R.infect(0.5);
+        days_infected_checker(&mut R, 0.2);
+        if R.infected.len() == 0{
+            if R.vertices.len() == 0{
+                println!("Everybody Died");
+                break;
+            } else{
+                let survivors = R.vertices.len();
+                println!("{} People Survived!",survivors);
+                break;
+            }
+        }
+    }
+    println!("DONE");
+
 
     //print_matrix(&R.graph);
     //println!("{:?}",&R.vertices);
-    println!("{:?}", R.infected);
-    R.infect(1.0);
-    println!("{:?}", R.infected);
+    //println!("{:?}", R.infected);
+    //R.infect(1.0);
+    //println!("{:?}", R.infected);
 
 
 
