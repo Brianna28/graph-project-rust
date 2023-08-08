@@ -1,6 +1,6 @@
 // main.rs
 pub mod diameter;
-use nalgebra::{DMatrix, coordinates::X};
+use nalgebra::DMatrix;
 use rand::Rng;
 use rand::seq::SliceRandom; 
 use std::collections::{HashMap,HashSet};
