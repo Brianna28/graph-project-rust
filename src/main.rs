@@ -37,7 +37,7 @@ impl InfectionGraph{
             neighbours.push(a);
         }
 
-
+        //test
         return neighbours;
     }
     fn remove_node(&mut self, n: usize){
